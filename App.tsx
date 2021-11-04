@@ -1,114 +1,52 @@
 import React, { useEffect, useState } from "react";
-import { ActivityIndicator, Dimensions } from "react-native";
+import { ActivityIndicator, Dimensions, TouchableOpacity } from "react-native";
 import styled from "styled-components/native";
 import * as Location from "expo-location";
-import { Fontisto } from "@expo/vector-icons";
-import { IDaily } from "./type";
-import { StatusBar } from "expo-status-bar";
 
-const Container = styled.View`
-  flex: 1;
-  background-color: #333333;
-`;
+import { ICurrentAir, IDaily } from "./type";
+import { getAirCurrent, getMeasuringStation } from "./api";
+import { getNearbyStationName, IArr } from "./utils";
+import { REACT_APP_API_GOOGLE_KEY, REACT_APP_API_WEATHER_KEY } from "./env";
+import CurrentAirComponent from "./components/CurrentAirComponent";
+import Weather from "./components/Weather";
 
-const City = styled.View`
-  position: absolute;
-  bottom: 20px;
-  right: 20px;
-  color: white;
+const Container = styled.View<{ height: number }>`
+  height: ${(props) => `${props.height}px`};
 `;
 
-const CityName = styled.Text`
-  color: white;
-  font-size: 30px;
-  font-weight: 800;
-`;
-
-const Weather = styled.ScrollView`
-  flex: 9;
-  height: 100%;
-`;
-
-const Day = styled.View<{ width: number; background: string }>`
-  width: ${(props) => props.width};
-  flex-direction: row;
-  justify-content: space-around;
-  align-items: flex-start;
-  background-color: ${(props) => props.background};
-  padding-top: 200px;
-`;
-
-const DayLeft = styled.View`
-  justify-content: flex-start;
-  align-items: center;
-  height: 100%;
-`;
-
-const DayRight = styled.View`
-  justify-content: flex-start;
-  align-items: center;
-  height: 100%;
-  margin-top: 100px;
-`;
-
-const Temp = styled.Text`
-  font-weight: 600;
-  font-size: 100px;
-  color: white;
-`;
-
-const WeatherMain = styled.Text`
-  color: white;
-  font-size: 60px;
-`;
-const Description = styled.Text`
-  color: white;
-  font-size: 30px;
-`;
-
-const DateText = styled.Text`
-  position: absolute;
-  bottom: 20px;
-  left: 20px;
-  color: white;
-  font-size: 30px;
-`;
 const Loading = styled.View<{ height: number; width: number }>`
-  height: ${(props) => props.height};
-  width: ${(props) => props.width};
+  height: ${(props) => `${props.height}px`};
+  width: ${(props) => `${props.width}px`};
 `;
 
-const Permission = styled.View``;
+const Permission = styled.View`
+  background-color: red;
+  justify-content: center;
+  align-items: center;
+`;
 
-const PermissionText = styled.Text``;
+const PermissionText = styled.Text`
+  color: white;
+  font-size: 30px;
+`;
 
-const API_KEY = "dd0ae37726d29559984de96940e25e55";
-
-const icons: any = {
-  Clouds: "cloudy",
-  Clear: "day-sunny",
-  Atmosphere: "cloudy-gusts",
-  Snow: "snow",
-  Rain: "rains",
-  Drizzle: "rain",
-  Thunderstorm: "lightning",
-};
-const backgroundColors: any = {
-  Clouds: "#7F919B",
-  Clear: "tomato",
-  Atmosphere: "#111521",
-  Snow: "#304D86",
-  Rain: "blue",
-  Drizzle: "#170E0B",
-  Thunderstorm: "yellow",
-};
+const DustContainer = styled.View<{ height: number }>`
+  flex: 1;
+  height: ${(props) => `${props.height}px`};
+  justify-content: center;
+  align-items: center;
+`;
 
 export default function App() {
   const [loading, setLoading] = useState(true);
-  const [city, setCity] = useState<string | null>(null);
+  const [city, setCity] = useState<string>("");
   const [days, setDaily] = useState<IDaily[]>([]);
   const [permission, setPermisson] = useState(true);
+  const [currentAir, setCurrentAir] = useState<ICurrentAir[]>([]);
+  const [street, setStreet] = useState<string>("");
+  const [weathering, setWeathering] = useState<boolean>(true);
   const { width, height } = Dimensions.get("window");
+
   const getWeather = async () => {
     const { granted } = await Location.requestForegroundPermissionsAsync();
     if (!granted) {
@@ -117,13 +55,15 @@ export default function App() {
     const {
       coords: { latitude, longitude },
     } = await Location.getCurrentPositionAsync({ accuracy: 5 });
+    Location.setGoogleApiKey(REACT_APP_API_GOOGLE_KEY);
     const location = await Location.reverseGeocodeAsync(
       { latitude, longitude },
       { useGoogleMaps: false }
     );
-    setCity(location[0].city);
+    setStreet(location[0].street ? location[0].street : "");
+    setCity(location[0].city ? location[0].city : "");
     const { daily } = await fetch(
-      `https://api.openweathermap.org/data/2.5/onecall?lat=${latitude}&lon=${longitude}&exclude=alerts&appid=${API_KEY}&units=metric`
+      `https://api.openweathermap.org/data/2.5/onecall?lat=${latitude}&lon=${longitude}&exclude=alerts&appid=${REACT_APP_API_WEATHER_KEY}&units=metric`
     )
       .then((res) => {
         if (!res.ok) {
@@ -134,59 +74,56 @@ export default function App() {
       .catch((e) => {
         alert(e);
       });
+    const result: IArr[] = await getDust(
+      location[0].city ? location[0].city : city
+    );
+    const nearStationName = getNearbyStationName(result, latitude, longitude);
+    const currentData: ICurrentAir[] = await getAirCurrent(nearStationName);
+    setCurrentAir(currentData);
     setDaily(daily);
     setLoading(false);
+  };
+
+  const getDust = async (city: string) => {
+    const {
+      response: {
+        body: { items },
+      },
+    } = await getMeasuringStation(city);
+
+    return items;
   };
   useEffect(() => {
     setLoading(true);
     getWeather();
   }, []);
   return (
-    <Container>
-      <StatusBar style="light" />
+    <Container height={height}>
       {loading ? (
         <Loading width={width} height={height}>
           <ActivityIndicator color="white" style={{ flex: 1 }} size="large" />
         </Loading>
       ) : permission ? (
-        <>
+        weathering ? (
           <Weather
-            pagingEnabled
-            horizontal
-            showsHorizontalScrollIndicator={false}
-          >
-            {days.map((day) => (
-              <>
-                <Day
-                  width={width}
-                  background={backgroundColors[day.weather[0].main]}
-                >
-                  <DayLeft>
-                    <Temp>{day.temp.day.toFixed(1)}</Temp>
-                    <WeatherMain>{day.weather[0].main}</WeatherMain>
-                    <Description>{day.weather[0].description}</Description>
-                  </DayLeft>
-                  <DayRight>
-                    <Fontisto
-                      name={icons[day.weather[0].main]}
-                      size={68}
-                      color="white"
-                    />
-                  </DayRight>
-                  <DateText>
-                    {new Date(day.dt * 1000).toString().substring(0, 10)}
-                  </DateText>
-                  <City>
-                    <CityName>{city}</CityName>
-                  </City>
-                </Day>
-              </>
-            ))}
-          </Weather>
-        </>
+            data={days}
+            locationName={`${city} ${street}`}
+            setWeathering={setWeathering}
+            currentAir={currentAir[0]}
+          />
+        ) : (
+          <DustContainer height={height}>
+            <CurrentAirComponent
+              data={currentAir}
+              locationName={`${city} ${street}`}
+              setWeathering={setWeathering}
+              daily={days[0]}
+            />
+          </DustContainer>
+        )
       ) : (
         <Permission>
-          <PermissionText>no access </PermissionText>
+          <PermissionText>No access</PermissionText>
         </Permission>
       )}
     </Container>
