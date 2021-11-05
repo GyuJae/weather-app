@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { ActivityIndicator, Dimensions, TouchableOpacity } from "react-native";
+import {
+  ActivityIndicator,
+  Dimensions,
+  StatusBar,
+  TouchableOpacity,
+} from "react-native";
 import styled from "styled-components/native";
 import * as Location from "expo-location";
 
@@ -17,10 +22,11 @@ const Container = styled.View<{ height: number }>`
 const Loading = styled.View<{ height: number; width: number }>`
   height: ${(props) => `${props.height}px`};
   width: ${(props) => `${props.width}px`};
+  background-color: #f05050;
 `;
 
-const Permission = styled.View`
-  background-color: red;
+const Permission = styled.View<{ width: number; height: number }>`
+  background-color: #f05050;
   justify-content: center;
   align-items: center;
 `;
@@ -99,6 +105,7 @@ export default function App() {
   }, []);
   return (
     <Container height={height}>
+      <StatusBar />
       {loading ? (
         <Loading width={width} height={height}>
           <ActivityIndicator color="white" style={{ flex: 1 }} size="large" />
@@ -122,8 +129,8 @@ export default function App() {
           </DustContainer>
         )
       ) : (
-        <Permission>
-          <PermissionText>No access</PermissionText>
+        <Permission width={width} height={height}>
+          <PermissionText>No Permisson</PermissionText>
         </Permission>
       )}
     </Container>

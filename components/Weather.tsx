@@ -62,6 +62,7 @@ const LocationName = styled.Text`
 
 const WeekWeatherScroll = styled.ScrollView<{ backgroundColor: string }>`
   background-color: ${(props) => props.backgroundColor};
+  height: 100%;
 `;
 
 const DustBtnView = styled.View`
@@ -202,13 +203,15 @@ const Weather: React.FC<IWeather> = ({
           </TouchableOpacity>
           <WeekWeatherScroll
             backgroundColor={weatherBackgroundColors[data[0].weather[0].main]}
+            showsHorizontalScrollIndicator={false}
           >
-            {data.slice(1).map((day, key) => (
+            {data.map((day, key) => (
               <TouchableOpacity
                 onPress={() => {
                   setDetail(true);
-                  setDetailIdx(key + 1);
+                  setDetailIdx(key);
                 }}
+                key={key}
               >
                 <WeekWeather key={key} daily={day} />
               </TouchableOpacity>
